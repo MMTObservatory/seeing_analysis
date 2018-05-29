@@ -213,6 +213,8 @@ def process_image(f, clobber=False):
     props = []
     spot_lines = []
     fit_lines = []
+    gauss_warnings = 0
+    moffat_warnings = 0
     for m, s in zip(masks, spots):
         tline = {}
         subim = m.cutout(data)
@@ -257,8 +259,8 @@ def process_image(f, clobber=False):
                 warnings.simplefilter("always")
                 gauss_fit = fitter(gauss_model, x, y, subim)
                 if len(warns) > 0:
-                    for warn in warns:
-                        print(f"Got warning when fitting 2D gaussian to spots in {pathstr}: {str(warn.message)}")
+                    gauss_warnings += len(warns)
+
             gauss_resid = subim - gauss_fit(x, y)
             gauss_fwhm = 0.5 * (gauss_fit.x_stddev_0.value + gauss_fit.y_stddev_0.value) * stats.gaussian_sigma_to_fwhm
             tline['gauss_x'] = gauss_fit.x_mean_0.value
@@ -287,8 +289,8 @@ def process_image(f, clobber=False):
                 warnings.simplefilter("always")
                 moffat_fit = fitter(moffat_model, x, y, subim)
                 if len(warns) > 0:
-                    for warn in warns:
-                        print(f"Got warning when fitting 2D Moffat to spots in {pathstr}: {str(warn.message)}")
+                    moffat_warnings += len(warns)
+
             moffat_resid = subim - moffat_fit(x, y)
             gamma = moffat_fit.gamma_0.value
             alpha = moffat_fit.alpha_0.value
@@ -314,6 +316,11 @@ def process_image(f, clobber=False):
             tline['moment_fwhm'] = np.nan
             tline['moffat_fwhm'] = np.nan
         fit_lines.append(tline)
+
+    if gauss_warnings > 0:
+        print(f"{pathstr} had {gauss_warnings} warnings when fitting 2D gaussians")
+    if moffat_warnings > 0:
+        print(f"{pathstr} had {moffat_warnings} warnings when fitting 2D Moffat profiles")
 
     try:
         fit_table = Table(fit_lines)
