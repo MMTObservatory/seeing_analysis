@@ -5,14 +5,16 @@ from datetime import datetime
 import pytz
 import os
 import sys
-import numpy as np
-import pandas as pd
 import argparse
+import warnings
 
 import multiprocessing
 from multiprocessing import Pool
 
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 import photutils
 import astropy.units as u
@@ -23,9 +25,7 @@ from astropy.table import Table, hstack, vstack
 from astropy.modeling.models import Gaussian2D, Polynomial2D, Moffat2D
 from astropy.modeling.fitting import LevMarLSQFitter
 
-from mmtwfs.wfs import *
-from mmtwfs.zernike import ZernikeVector
-from mmtwfs.telescope import MMT
+from mmtwfs.wfs import wfsfind
 from mmtwfs.custom_exceptions import WFSAnalysisFailed
 
 
@@ -34,10 +34,15 @@ tz = pytz.timezone("America/Phoenix")
 
 def check_image(f, wfskey=None):
     hdr = {}
-    with fits.open(f) as hdulist:
-        for h in hdulist:
-            hdr.update(h.header)
-        data = hdulist[-1].data
+    with warnings.catch_warnings(record=True) as warns:
+        warnings.simplefilter("always")
+        with fits.open(f) as hdulist:
+            for h in hdulist:
+                hdr.update(h.header)
+            data = hdulist[-1].data
+        if len(warns) > 0:
+            for warn in warns:
+                print(f"Got warning when opening {pathstr}: {str(warn.message)}")
 
     # if wfskey is None, figure out which WFS from the header info...
     if wfskey is None:
@@ -155,6 +160,7 @@ findpars = {
 
 def process_image(f, clobber=False):
     tablefile = Path(str(f.parent / f.stem) + ".csv")
+    pathstr = str(Path(str(f.parent / f.stem)))
 
     if '_ave' in str(f):
         print(f"Not processing {f.name} because it's an average of multiple images")
@@ -171,15 +177,25 @@ def process_image(f, clobber=False):
         w = hdr['WFSKEY']
         mean, median, stddev = stats.sigma_clipped_stats(data, sigma=3.0, iters=None)
         data = data - median
-        spots, fig = wfsfind(data, fwhm=findpars[w]['fwhm'], threshold=findpars[w]['thresh'], plot=False)
+        with warnings.catch_warnings(record=True) as warns:
+            warnings.simplefilter("always")
+            spots, fig = wfsfind(data, fwhm=findpars[w]['fwhm'], threshold=findpars[w]['thresh'], plot=False)
+            if len(warns) > 0:
+                for warn in warns:
+                    print(f"Got warning when finding spots in {pathstr}: {str(warn.message)}")
     except WFSAnalysisFailed as e:
         try:
-            spots, fig = wfsfind(data, fwhm=2.*findpars[w]['fwhm'], threshold=findpars[w]['thresh'], plot=False)
+            with warnings.catch_warnings(record=True) as warns:
+                warnings.simplefilter("always")
+                spots, fig = wfsfind(data, fwhm=2.*findpars[w]['fwhm'], threshold=findpars[w]['thresh'], plot=False)
+                if len(warns) > 0:
+                    for warn in warns:
+                        print(f"Got warning when finding spots with 2x larger FWHM in {pathstr}: {str(warn.message)}")
         except Exception as e:
-            print(f"Failed to find spots for {str(Path(str(f.parent / f.stem)))}: {e}")
+            print(f"Failed to find spots for {pathstr}: {e}")
             return
     except Exception as ee:
-        print(f"Failure in data loading or spot finding in {str(Path(str(f.parent / f.stem)))}: {ee}")
+        print(f"Failure in data loading or spot finding in {pathstr}: {ee}")
         return
 
     apsize = 15.
@@ -195,9 +211,14 @@ def process_image(f, clobber=False):
         tline = {}
         subim = m.cutout(data)
         try:
-            props_table = photutils.data_properties(subim).to_table()
+            with warnings.catch_warnings(record=True) as warns:
+                warnings.simplefilter("always")
+                props_table = photutils.data_properties(subim).to_table()
+                if len(warns) > 0:
+                    for warn in warns:
+                        print(f"Got warning when measuring spots with photutils in {pathstr}: {str(warn.message)}")
         except Exception as e:
-            print(f"Can't measure source properties for {str(Path(str(f.parent / f.stem)))}: {e}")
+            print(f"Can't measure source properties for {pathstr}: {e}")
             continue
         moment_fwhm = 0.5 * (props_table['semimajor_axis_sigma'][0].value + props_table['semiminor_axis_sigma'][0].value) * stats.gaussian_sigma_to_fwhm
         props.append(props_table)
@@ -226,7 +247,12 @@ def process_image(f, clobber=False):
         ) + Polynomial2D(degree=0)
 
         try:
-            gauss_fit = fitter(gauss_model, x, y, subim)
+            with warnings.catch_warnings(record=True) as warns:
+                warnings.simplefilter("always")
+                gauss_fit = fitter(gauss_model, x, y, subim)
+                if len(warns) > 0:
+                    for warn in warns:
+                        print(f"Got warning when fitting 2D gaussian to spots in {pathstr}: {str(warn.message)}")
             gauss_resid = subim - gauss_fit(x, y)
             gauss_fwhm = 0.5 * (gauss_fit.x_stddev_0.value + gauss_fit.y_stddev_0.value) * stats.gaussian_sigma_to_fwhm
             tline['gauss_x'] = gauss_fit.x_mean_0.value
@@ -239,7 +265,7 @@ def process_image(f, clobber=False):
             tline['gauss_rms'] = np.nanstd(gauss_resid)
             tline['gauss_fwhm'] = gauss_fwhm
         except Exception as e:
-            print(f"Gaussian fit failed in {str(Path(str(f.parent / f.stem)))}: {e}")
+            print(f"Gaussian fit failed in {pathstr}: {e}")
             tline['gauss_x'] = np.nan
             tline['gauss_y'] = np.nan
             tline['gauss_sigx'] = np.nan
@@ -251,7 +277,12 @@ def process_image(f, clobber=False):
             tline['gauss_fwhm'] = np.nan
 
         try:
-            moffat_fit = fitter(moffat_model, x, y, subim)
+            with warnings.catch_warnings(record=True) as warns:
+                warnings.simplefilter("always")
+                moffat_fit = fitter(moffat_model, x, y, subim)
+                if len(warns) > 0:
+                    for warn in warns:
+                        print(f"Got warning when fitting 2D Moffat to spots in {pathstr}: {str(warn.message)}")
             moffat_resid = subim - moffat_fit(x, y)
             gamma = moffat_fit.gamma_0.value
             alpha = moffat_fit.alpha_0.value
@@ -266,7 +297,7 @@ def process_image(f, clobber=False):
             tline['moment_fwhm'] = moment_fwhm
             tline['moffat_fwhm'] = moffat_fwhm
         except Exception as e:
-            print(f"Moffat fit failed in {str(Path(str(f.parent / f.stem)))}: {e}")
+            print(f"Moffat fit failed in {pathstr}: {e}")
             tline['moffat_amplitude'] = np.nan
             tline['moffat_gamma'] = np.nan
             tline['moffat_alpha'] = np.nan
@@ -294,8 +325,8 @@ def process_image(f, clobber=False):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--root', default="/Volumes/LACIE SHARE/wfsdat", help="Root directory for WFS data.")
-parser.add_argument('--dirs', help="Glob of directories to look for WFS data.")
+parser.add_argument('-d', '--dirs', help="Glob of directories to look for WFS data.")
+parser.add_argument('-r', '--root', default="/Volumes/LACIE SHARE/wfsdat", help="Root directory for WFS data.")
 args = parser.parse_args()
 
 rootdir = Path(args.root)
