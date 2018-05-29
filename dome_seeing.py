@@ -34,6 +34,8 @@ tz = pytz.timezone("America/Phoenix")
 
 def check_image(f, wfskey=None):
     hdr = {}
+    pathstr = str(Path(str(f.parent / f.stem)))
+
     with warnings.catch_warnings(record=True) as warns:
         warnings.simplefilter("always")
         with fits.open(f) as hdulist:
@@ -163,14 +165,18 @@ def process_image(f, clobber=False):
     pathstr = str(Path(str(f.parent / f.stem)))
 
     if '_ave' in str(f):
-        print(f"Not processing {f.name} because it's an average of multiple images")
+        print(f"Not processing {pathstr} because it's an average of multiple images")
+        return
+
+    if 'sog_' in str(f):
+        print(f"Not processing Binospec SOG image, {pathstr}")
         return
 
     if tablefile.exists() and not clobber:
-        print(f"{f.name} already processed...")
+        print(f"{pathstr} already processed...")
         return
     else:
-        print(f"Processing {f.name}...")
+        print(f"Processing {pathstr}...")
 
     try:
         data, hdr = check_image(f)
@@ -309,10 +315,15 @@ def process_image(f, clobber=False):
             tline['moffat_fwhm'] = np.nan
         fit_lines.append(tline)
 
-    fit_table = Table(fit_lines)
-    spot_table = Table(vstack(spot_lines))
-    prop_table = Table(vstack(props))
-    t = hstack([spot_table, prop_table, fit_table])
+    try:
+        fit_table = Table(fit_lines)
+        spot_table = Table(vstack(spot_lines))
+        prop_table = Table(vstack(props))
+        t = hstack([spot_table, prop_table, fit_table])
+    except Exception as e:
+        print(f"Failed to construct table for {pathstr}: {e}")
+        return
+
     try:
         if tablefile.exists():
             if clobber:
