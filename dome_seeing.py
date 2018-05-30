@@ -102,11 +102,11 @@ def check_image(f, wfskey=None):
     # for analysis in pandas.
     dtime = None
     if 'DATEOBS' in hdr:
-        dateobs = hdr['DATEOBS']
+        dateobs = hdr['DATEOBS'].strip()
         if 'UT' in hdr:
-            ut = hdr['UT']
+            ut = hdr['UT'].strip()
         elif 'TIME-OBS' in hdr:
-            ut = hdr['TIME-OBS']
+            ut = hdr['TIME-OBS'].strip()
         else:
             ut = "07:00:00"  # midnight
         timestring = dateobs + " " + ut + " UTC"
@@ -120,17 +120,17 @@ def check_image(f, wfskey=None):
             dtime = datetime.strptime(timestring, "%Y-%m-%d %H:%M:%S %Z")
     else:
         if wfskey == "oldf9":
-            d = hdr['DATE-OBS']
+            d = hdr['DATE-OBS'].strip()
             if '/' in d:
                 day, month, year = d.split('/')
                 year = str(int(year) + 1900)
                 timestring = year + "-" + month + "-" + day + " " + hdr['TIME-OBS'] + " UTC"
             else:
-                timestring = d + " " + hdr['TIME-OBS'] + " UTC"
+                timestring = d + " " + hdr['TIME-OBS'].strip() + " UTC"
             dtime = datetime.strptime(timestring, "%Y-%m-%d %H:%M:%S %Z")
         else:
             if 'DATE-OBS' in hdr:
-                timestring = hdr['DATE-OBS'] + " UTC"
+                timestring = hdr['DATE-OBS'].strip() + " UTC"
                 try:
                     dtime = datetime.strptime(timestring, "%Y-%m-%dT%H:%M:%S.%f %Z")
                 except:
