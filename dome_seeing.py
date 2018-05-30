@@ -110,14 +110,10 @@ def check_image(f, wfskey=None):
         else:
             ut = "07:00:00"  # midnight
         timestring = dateobs + " " + ut + " UTC"
-        if wfskey in ('newf9', 'f5'):
-            if '-' in timestring:
-                dtime = datetime.strptime(timestring, "%Y-%m-%d %H:%M:%S %Z")
-            else:
-                dtime = datetime.strptime(timestring, "%a %b %d %Y %H:%M:%S %Z")
-
-        else:
+        if '-' in timestring:
             dtime = datetime.strptime(timestring, "%Y-%m-%d %H:%M:%S %Z")
+        else:
+            dtime = datetime.strptime(timestring, "%a %b %d %Y %H:%M:%S %Z")
     else:
         if wfskey == "oldf9":
             d = hdr['DATE-OBS'].strip()
