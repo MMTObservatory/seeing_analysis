@@ -341,12 +341,13 @@ def process_image(f, clobber=False):
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dirs', help="Glob of directories to look for WFS data.")
 parser.add_argument('-r', '--root', default="/Volumes/LACIE SHARE/wfsdat", help="Root directory for WFS data.")
+parser.add_argument('-n', '--nproc', default=8, help="Number of pool workers to spawn.")
 args = parser.parse_args()
 
 rootdir = Path(args.root)
 dirs = sorted(list(rootdir.glob(args.dirs)))
 
-nproc = 8
+nproc = args.nproc
 for d in dirs:
     if d.is_dir():
         print(f"Working in {d.name}...")
