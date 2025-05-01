@@ -101,3 +101,4 @@ all_seeing.csv
 # OS X stuff and local data
 .DS_Store
 data/
+f9_dates.txt
