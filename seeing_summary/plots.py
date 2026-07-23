@@ -226,3 +226,76 @@ def render_wfs_figures(df, period: Period, out_dir: Path) -> list[Path]:
     _ellip_vs_inst(df, path("ellip_vs_inst"))
     _bino_ellip_vs_el(df, path("bino_ellip_vs_el"))
     return written
+
+
+def _cyclop_vs_inst(df, cyclop, out):
+    pairs = [
+        (df[df["wfs"] == "binospec"], "Binospec"),
+        (df[df["wfs"] == "f5"], "F/5"),
+        (df[df["wfs"] == "mmirs"], "MMIRS"),
+        (df[df["wfs"] == "newf9"], "F/9"),
+    ]
+    with plt.style.context(_STYLE):
+        fig, axes = plt.subplots(2, 2, figsize=(7.5, 6), sharex=True, sharey=True)
+        axes = axes.flat
+        fig.subplots_adjust(hspace=0)
+        for ax, (sub, label) in zip(axes, pairs):
+            if len(sub):
+                nights = sorted(set(sub.index.strftime("%Y-%m-%d")))
+                cyc_nights = [np.asarray(cyclop.loc[n]["seeing"]) for n in nights
+                              if n in cyclop.index.strftime("%Y-%m-%d")]
+                cyc = np.hstack(cyc_nights) if cyc_nights else np.array([])
+                astro_hist(np.asarray(sub["vlt_seeing"]), bins="scott", ax=ax,
+                           histtype="stepfilled", alpha=0.6, density=True)
+                legend = [f'{label}: {np.median(sub["vlt_seeing"]):.2f}']
+                if cyc.size:
+                    astro_hist(cyc, bins="scott", ax=ax, histtype="stepfilled",
+                               alpha=0.6, density=True)
+                    legend.append(f"Cyclop: {np.median(cyc):.2f}")
+                ax.legend(legend)
+            ax.set_xlim(0, 4)
+        axes[0].set_ylabel("Probability Density")
+        axes[2].set_ylabel("Probability Density")
+        axes[2].set_xlabel("Seeing (arcsec)")
+        axes[3].set_xlabel("Seeing (arcsec)")
+        fig.tight_layout()
+        fig.savefig(out)
+    plt.close(fig)
+
+
+def render_cyclop_figures(df, cyclop, period: Period, out_dir: Path) -> list[Path]:
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tag = period.tag
+    seeing = cyclop["seeing"]
+    written = []
+
+    def path(name):
+        p = out_dir / f"{tag}_cyclop_{name}.png"
+        written.append(p)
+        return p
+
+    _lognorm_hist(seeing, f"Seeing Monitor: {period.date_range_str}", path("hist"))
+    _monthly_hist(seeing, path("monthly"))
+    _first_second(seeing, path("1st2nd"))
+    _nightly(seeing, path("nightly"))
+
+    with plt.style.context(_STYLE):
+        fig, ax = plt.subplots(figsize=(11, 5))
+        _violin(ax, _daily_groups(seeing), "%Y-%m-%d", "%m-%d-%Y", widths=1.5, points=50, ylim=(0.0, 3.5))
+        ax.set_ylabel("Seeing (arcsec)")
+        fig.autofmt_xdate()
+        fig.savefig(path("violin"))
+    plt.close(fig)
+
+    with plt.style.context(_STYLE):
+        fig, ax = plt.subplots(figsize=(11, 5))
+        _violin(ax, _month_groups(seeing), "%Y-%m", "%b", widths=15, points=100, ylim=(0.0, 3.5))
+        ax.set_ylabel("Seeing (arcsec)")
+        ax.set_title(f"{period.title} Monthly Seeing Monitor Statistics")
+        fig.autofmt_xdate()
+        fig.savefig(path("violin_monthly"))
+    plt.close(fig)
+
+    _cyclop_vs_inst(df, cyclop, path("vs_inst"))
+    return written
