@@ -62,7 +62,7 @@ Each quarterly/yearly notebook follows the same template — adapt an existing o
 - Read CSV list → concat → filter `seeing` finite, `fwhm > 0`, `0 < seeing < 4` → set `DatetimeIndex` from the `time` column (named `ut`).
 - The "good" seeing column is `vlt_seeing` (zenith-corrected via VLT method) in recent quarterly notebooks. The aggregate `all_seeing.ipynb` renames `vlt_seeing` → `seeing` after loading, so downstream code there refers to `seeing`. Don't blindly copy column names between notebooks — check which renaming has happened.
 - `between_time('00:00','07:00')` vs `('07:00','14:00')` splits the night into halves (UT). Times are UTC throughout; conversions to local use `America/Phoenix` (no DST).
-- Plots are saved as PNG (and sometimes PDF) into the repo root with names encoding the period, e.g. `2025_q4_violin.png`. These output PNGs are committed to the repo and should keep the existing naming convention so the overview notebooks/exports keep working.
+- The archived notebooks saved PNGs (and sometimes PDFs) into the repo root with names encoding the period, e.g. `2025_q4_violin.png`. Those historical figures have since been relocated into `images/<year>/` (year-less ones into `images/misc/`), and the `seeing_summary` generator writes new figures there under standardized `{tag}_{figure}.png` names — see "Generating quarterly / yearly summaries" above.
 - Cyclop comparisons load `~/MMT/minicyclop/data/MiniCyclop/Data/Seeing_Data.txt` and slice by the same date set as the WFS data.
 
 ## Notebook hygiene
