@@ -152,13 +152,22 @@ PYTHON ?= /Users/tim/conda/envs/mmtwfs/bin/python
 
 .PHONY: help
 help:
-	@echo "Usage: make <period>   e.g. make 2026q2  or  make 2025"
+	@echo "Usage:"
+	@echo "  make <period>   generate figures, e.g. make 2026q2  or  make 2025"
+	@echo "  make test       run the unit tests"
+
+.PHONY: test
+test:
+	$(PYTHON) -m pytest tests/
 
 # Period specs (YYYY or YYYYqN) all start with "20".
 # No file named after the target is ever created, so this re-runs every time.
 20%:
 	$(PYTHON) -m seeing_summary $@
 ```
+
+`make` with no target prints `help`. `test` and `help` are declared before the
+`20%` pattern rule so they are never shadowed by it.
 
 The target file (`2026q2`) is never created, so the rule re-runs every time.
 (`.PHONY` is intentionally not used here — it does not accept pattern targets;
@@ -189,11 +198,15 @@ call for one-off cases; `make` covers the common path.
 
 ## Testing
 
-Lightweight, since this is an analysis repo with no existing test suite:
+Lightweight, since this is an analysis repo with no existing test suite. Tests
+live in `tests/` and run via `make test` (`python -m pytest tests/` in the
+mmtwfs env):
 - Unit-test `periods.parse_period` for `2025q4` and `2025` (date bounds, tag,
-  months, title).
+  months, title), and that a bad spec raises.
 - Unit-test `discover_csvs` date filtering against a small temp tree of empty
   dated dirs.
+- Unit-test the coverage checks: no data in range raises; data ending before the
+  period end warns.
 - Smoke test: run the CLI against a real recent quarter in the `mmtwfs` env and
   confirm the expected PNG files appear in `images/<year>/` and are non-empty.
   Compare figure count/names to the archived quarterly notebook's output.
