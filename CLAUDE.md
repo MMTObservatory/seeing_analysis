@@ -28,6 +28,33 @@ Throughout the code, `wfskey` / `wfs` column values identify the instrument: `ol
 3. **WFS-key tagging** — `parse_clear.py` is unrelated to clearing logs despite the name; it actually walks per-night CSV directories and writes a `wfskeys.csv` per night summarizing which WFS each file came from. Default root is `/Volumes/Seagate2TB/spot_analysis`.
 4. **Aggregation & plotting** — Jupyter notebooks read lists of CSV paths from text files in `data/` (one path per line, relative to `data/`) and concatenate them into one DataFrame. The all-time summary uses `data/all_results.txt`; quarterly summaries use files like `data/reanalyze_csvs_2025q4.txt` or `data/reanalyze_2025_q3.txt` (naming is inconsistent — check the corresponding notebook to find the right list file).
 
+## Generating quarterly / yearly summaries
+
+Use the `seeing_summary` package instead of copying a notebook. Run everything
+in the `mmtwfs` conda env.
+
+```
+make 2026q2          # a quarter
+make 2025            # a full year
+make test            # run the unit tests
+```
+
+`make <period>` calls `python -m seeing_summary <period>`. The generator:
+- auto-discovers `data/YYYYMMDD/reanalyze_results.csv` files whose date falls in
+  the period (no more manual `reanalyze_csvs_*.txt` list files),
+- applies the standard filter (`seeing` finite, `fwhm > 0`, `0 < seeing < 4`) and
+  plots the `vlt_seeing` column,
+- writes standardized figures to `images/<year>/{tag}_{figure}.png`
+  (`tag` is `2025_q4` for quarters, `2025` for years),
+- warns if the data does not reach the end of the period (in-progress quarter)
+  and errors if the period has no data at all,
+- appends MiniCyclop seeing-monitor comparison figures when `minicyclop` is
+  importable (pass `--no-cyclop`, or it is skipped with a warning otherwise).
+
+Package layout: `seeing_summary/periods.py` (spec parsing),
+`data.py` (discovery/loading/coverage/cyclop), `plots.py` (one function per
+figure), `__main__.py` (CLI).
+
 ## Notebook conventions
 
 Each quarterly/yearly notebook follows the same template — adapt an existing one rather than writing from scratch:
@@ -35,14 +62,17 @@ Each quarterly/yearly notebook follows the same template — adapt an existing o
 - Read CSV list → concat → filter `seeing` finite, `fwhm > 0`, `0 < seeing < 4` → set `DatetimeIndex` from the `time` column (named `ut`).
 - The "good" seeing column is `vlt_seeing` (zenith-corrected via VLT method) in recent quarterly notebooks. The aggregate `all_seeing.ipynb` renames `vlt_seeing` → `seeing` after loading, so downstream code there refers to `seeing`. Don't blindly copy column names between notebooks — check which renaming has happened.
 - `between_time('00:00','07:00')` vs `('07:00','14:00')` splits the night into halves (UT). Times are UTC throughout; conversions to local use `America/Phoenix` (no DST).
-- Plots are saved as PNG (and sometimes PDF) into the repo root with names encoding the period, e.g. `2025_q4_violin.png`. These output PNGs are committed to the repo and should keep the existing naming convention so the overview notebooks/exports keep working.
+- The archived notebooks saved PNGs (and sometimes PDFs) into the repo root with names encoding the period, e.g. `2025_q4_violin.png`. Those historical figures have since been relocated into `images/<year>/` (year-less ones into `images/misc/`), and the `seeing_summary` generator writes new figures there under standardized `{tag}_{figure}.png` names — see "Generating quarterly / yearly summaries" above.
 - Cyclop comparisons load `~/MMT/minicyclop/data/MiniCyclop/Data/Seeing_Data.txt` and slice by the same date set as the WFS data.
 
 ## Notebook hygiene
 
-- `data/` and `f9_dates.txt` are gitignored — generated CSVs should not be committed. Only the path-list `.txt` files in `data/` (e.g. `reanalyze_csvs_2025q4.txt`) and the notebooks/PNGs are tracked.
+- `data/` and `f9_dates.txt` are gitignored — generated CSVs should not be committed. Only the path-list `.txt` files in `data/` (e.g. `reanalyze_csvs_2025q4.txt`), the archived notebooks, and the figures under `images/` are tracked.
 - A recent commit (`3c939fe clear outputs`) cleared notebook outputs. Prefer committing notebooks with cleared outputs to keep diffs reviewable, unless the user asks otherwise.
 
 ## Editing notebooks
 
-Use the NotebookEdit tool for `.ipynb` files rather than Edit/Write — preserves cell structure and metadata.
+- Committed figures now live in `images/<year>/` (year-less legacy figures in
+  `images/misc/`); the generator writes there. Historical per-quarter/year
+  notebooks are archived under `notebooks/`.
+- Use the NotebookEdit tool for `.ipynb` files rather than Edit/Write — preserves cell structure and metadata.
