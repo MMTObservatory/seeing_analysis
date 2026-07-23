@@ -14,7 +14,43 @@ from scipy.stats import lognorm
 from .periods import Period
 
 _STYLE = "ggplot"
+# Apply ggplot globally so every figure is consistent. The per-figure
+# `plt.style.context(_STYLE)` blocks below restore to this same style on exit,
+# so figures rendered without an explicit context are ggplot too.
+plt.style.use(_STYLE)
+
 _WFS_ORDER = [("binospec", "Binospec"), ("mmirs", "MMIRS"), ("f5", "F/5"), ("newf9", "F/9")]
+
+
+def _instrument_grid(n):
+    """Return ``(fig, axes_list)`` for ``n`` per-instrument panels.
+
+    Four instruments use the familiar 2x2 grid; any other count is laid out as
+    a single vertical column (e.g. three instruments -> three stacked panels).
+    Axes share x and y.
+    """
+    n = max(n, 1)
+    if n == 4:
+        fig, axes = plt.subplots(2, 2, figsize=(7.5, 6), sharex=True, sharey=True)
+        axes = list(axes.flat)
+    else:
+        fig, axes = plt.subplots(n, 1, figsize=(6, 2.8 * n), sharex=True, sharey=True)
+        axes = [axes] if n == 1 else list(axes)
+    fig.subplots_adjust(hspace=0)
+    return fig, axes
+
+
+def _label_panels(axes, xlabel, ylabel):
+    """Label the bottom-row axes with ``xlabel`` and left-column axes with
+    ``ylabel``, for either the 2x2 grid or a vertical column."""
+    if len(axes) == 4:
+        left, bottom = (axes[0], axes[2]), (axes[2], axes[3])
+    else:
+        left, bottom = tuple(axes), (axes[-1],)
+    for ax in left:
+        ax.set_ylabel(ylabel)
+    for ax in bottom:
+        ax.set_xlabel(xlabel)
 
 
 def _month_groups(series):
@@ -140,23 +176,19 @@ def _ellipticity_hist(df, out):
 
 
 def _ellip_vs_inst(df, out):
-    with plt.style.context(_STYLE):
-        fig, axes = plt.subplots(2, 2, figsize=(7.5, 6), sharex=True, sharey=True)
-        axes = axes.flat
-        fig.subplots_adjust(hspace=0)
-        for ax, (key, label) in zip(axes, _WFS_ORDER):
-            vals = df["ellipticity"][df["wfs"] == key]
-            if len(vals):
-                astro_hist(np.asarray(vals), bins="scott", ax=ax,
-                           histtype="stepfilled", alpha=0.6, density=True)
-                ax.legend([f'{label}: {np.median(vals):.2f}'])
-            ax.set_xlim(0, 0.5)
-        axes[0].set_ylabel("Probability Density")
-        axes[2].set_ylabel("Probability Density")
-        axes[2].set_xlabel("Ellipticity")
-        axes[3].set_xlabel("Ellipticity")
-        fig.tight_layout()
-        fig.savefig(out)
+    present = [(k, l) for k, l in _WFS_ORDER if len(df["ellipticity"][df["wfs"] == k])]
+    if not present:
+        present = [_WFS_ORDER[0]]
+    fig, axes = _instrument_grid(len(present))
+    for ax, (key, label) in zip(axes, present):
+        vals = df["ellipticity"][df["wfs"] == key]
+        astro_hist(np.asarray(vals), bins="scott", ax=ax,
+                   histtype="stepfilled", alpha=0.6, density=True)
+        ax.legend([f'{label}: {np.median(vals):.2f}'])
+        ax.set_xlim(0, 0.5)
+    _label_panels(axes, "Ellipticity", "Probability Density")
+    fig.tight_layout()
+    fig.savefig(out)
     plt.close(fig)
 
 
@@ -228,38 +260,32 @@ def render_wfs_figures(df, period: Period, out_dir: Path) -> list[Path]:
     return written
 
 
+_CYCLOP_ORDER = [("binospec", "Binospec"), ("f5", "F/5"), ("mmirs", "MMIRS"), ("newf9", "F/9")]
+
+
 def _cyclop_vs_inst(df, cyclop, out):
-    pairs = [
-        (df[df["wfs"] == "binospec"], "Binospec"),
-        (df[df["wfs"] == "f5"], "F/5"),
-        (df[df["wfs"] == "mmirs"], "MMIRS"),
-        (df[df["wfs"] == "newf9"], "F/9"),
-    ]
-    with plt.style.context(_STYLE):
-        fig, axes = plt.subplots(2, 2, figsize=(7.5, 6), sharex=True, sharey=True)
-        axes = axes.flat
-        fig.subplots_adjust(hspace=0)
-        for ax, (sub, label) in zip(axes, pairs):
-            if len(sub):
-                nights = sorted(set(sub.index.strftime("%Y-%m-%d")))
-                cyc_nights = [np.asarray(cyclop.loc[n]["seeing"]) for n in nights
-                              if n in cyclop.index.strftime("%Y-%m-%d")]
-                cyc = np.hstack(cyc_nights) if cyc_nights else np.array([])
-                astro_hist(np.asarray(sub["vlt_seeing"]), bins="scott", ax=ax,
-                           histtype="stepfilled", alpha=0.6, density=True)
-                legend = [f'{label}: {np.median(sub["vlt_seeing"]):.2f}']
-                if cyc.size:
-                    astro_hist(cyc, bins="scott", ax=ax, histtype="stepfilled",
-                               alpha=0.6, density=True)
-                    legend.append(f"Cyclop: {np.median(cyc):.2f}")
-                ax.legend(legend)
-            ax.set_xlim(0, 4)
-        axes[0].set_ylabel("Probability Density")
-        axes[2].set_ylabel("Probability Density")
-        axes[2].set_xlabel("Seeing (arcsec)")
-        axes[3].set_xlabel("Seeing (arcsec)")
-        fig.tight_layout()
-        fig.savefig(out)
+    present = [(k, l) for k, l in _CYCLOP_ORDER if len(df[df["wfs"] == k])]
+    if not present:
+        present = [_CYCLOP_ORDER[0]]
+    cyclop_days = set(cyclop.index.strftime("%Y-%m-%d"))
+    fig, axes = _instrument_grid(len(present))
+    for ax, (key, label) in zip(axes, present):
+        sub = df[df["wfs"] == key]
+        nights = sorted(set(sub.index.strftime("%Y-%m-%d")))
+        cyc_nights = [np.asarray(cyclop.loc[n]["seeing"]) for n in nights if n in cyclop_days]
+        cyc = np.hstack(cyc_nights) if cyc_nights else np.array([])
+        astro_hist(np.asarray(sub["vlt_seeing"]), bins="scott", ax=ax,
+                   histtype="stepfilled", alpha=0.6, density=True)
+        legend = [f'{label}: {np.median(sub["vlt_seeing"]):.2f}']
+        if cyc.size:
+            astro_hist(cyc, bins="scott", ax=ax, histtype="stepfilled",
+                       alpha=0.6, density=True)
+            legend.append(f"Cyclop: {np.median(cyc):.2f}")
+        ax.legend(legend)
+        ax.set_xlim(0, 4)
+    _label_panels(axes, "Seeing (arcsec)", "Probability Density")
+    fig.tight_layout()
+    fig.savefig(out)
     plt.close(fig)
 
 
