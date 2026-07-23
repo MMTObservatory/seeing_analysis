@@ -46,7 +46,7 @@ def load_wfs(data_dir: Path, period: Period) -> pd.DataFrame:
     df = df[(df["seeing"] > 0.0) & (df["seeing"] < 4.0)]
     if df.empty:
         raise NoDataError(f"all rows filtered out for {period.spec}; no usable data")
-    df = df.set_index(pd.DatetimeIndex(pd.to_datetime(df["time"]), name="ut"))
+    df = df.set_index(pd.DatetimeIndex(pd.to_datetime(df["time"], format="mixed"), name="ut"))
     return df.sort_index()
 
 

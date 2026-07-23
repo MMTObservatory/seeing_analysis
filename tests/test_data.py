@@ -9,12 +9,12 @@ from seeing_summary.periods import parse_period
 from seeing_summary import data
 
 
-def _write_night(root: Path, day: str, n: int = 5):
+def _write_night(root: Path, day: str, n: int = 5, time_format: str = "%Y-%m-%dT%H:%M:%S.%f"):
     d = root / day
     d.mkdir(parents=True)
     ts = pd.date_range(f"{day[:4]}-{day[4:6]}-{day[6:]}T02:00:00", periods=n, freq="min")
     df = pd.DataFrame({
-        "time": ts.strftime("%Y-%m-%dT%H:%M:%S.%f"),
+        "time": ts.strftime(time_format),
         "wfs": ["f5"] * n,
         "el": np.linspace(60, 70, n),
         "seeing": np.linspace(0.5, 1.5, n),
@@ -40,6 +40,18 @@ def test_load_wfs_ok(tmp_path):
     assert df.index.name == "ut"
     assert len(df) == 5
     assert df["vlt_seeing"].notna().all()
+
+
+def test_load_wfs_mixed_time_formats(tmp_path):
+    # Real per-night CSVs have mixed `time` formats within a single quarter:
+    # some rows have microseconds, some don't. pd.to_datetime must not choke
+    # on the mix (regression for the ValueError seen against real data).
+    _write_night(tmp_path, "20251001", time_format="%Y-%m-%dT%H:%M:%S.%f")
+    _write_night(tmp_path, "20251020", time_format="%Y-%m-%dT%H:%M:%S")
+    df = data.load_wfs(tmp_path, parse_period("2025q4"))
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.name == "ut"
+    assert len(df) == 10
 
 
 def test_load_wfs_no_data_raises(tmp_path):
