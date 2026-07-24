@@ -30,11 +30,11 @@ def test_render_wfs_figures(wfs_df, tmp_path):
     written = plots.render_wfs_figures(wfs_df, period, tmp_path)
     names = {p.name for p in written}
     assert names == {
-        "2025_q4_hist.png", "2025_q4_monthly.png", "2025_q4_1st2nd.png",
-        "2025_q4_nightly.png", "2025_q4_violin.png", "2025_q4_violin_monthly.png",
-        "2025_q4_ellip_violin.png", "2025_q4_per_instrument.png",
-        "2025_q4_ellipticity.png", "2025_q4_ellip_vs_inst.png",
-        "2025_q4_bino_ellip_vs_el.png",
+        "hist.png", "monthly.png", "1st2nd.png",
+        "nightly.png", "violin.png", "violin_monthly.png",
+        "ellip_violin.png", "per_instrument.png",
+        "ellipticity.png", "ellip_vs_inst.png",
+        "bino_ellip_vs_el.png",
     }
     for p in written:
         assert p.exists() and p.stat().st_size > 0
@@ -53,10 +53,10 @@ def test_render_cyclop_figures(wfs_df, cyclop_df, tmp_path):
     written = plots.render_cyclop_figures(wfs_df, cyclop_df, period, tmp_path)
     names = {p.name for p in written}
     assert names == {
-        "2025_q4_cyclop_hist.png", "2025_q4_cyclop_monthly.png",
-        "2025_q4_cyclop_1st2nd.png", "2025_q4_cyclop_nightly.png",
-        "2025_q4_cyclop_violin.png", "2025_q4_cyclop_violin_monthly.png",
-        "2025_q4_cyclop_vs_inst.png",
+        "cyclop_hist.png", "cyclop_monthly.png",
+        "cyclop_1st2nd.png", "cyclop_nightly.png",
+        "cyclop_violin.png", "cyclop_violin_monthly.png",
+        "cyclop_vs_inst.png",
     }
     for p in written:
         assert p.exists() and p.stat().st_size > 0

@@ -30,7 +30,7 @@ def main(argv=None) -> int:
 
     data.warn_coverage(df, period)
 
-    out_dir = args.out_dir / str(period.year)
+    out_dir = args.out_dir / str(period.year) / period.subdir
     written = plots.render_wfs_figures(df, period, out_dir)
 
     if not args.no_cyclop:

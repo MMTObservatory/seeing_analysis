@@ -44,8 +44,11 @@ make test            # run the unit tests
   the period (no more manual `reanalyze_csvs_*.txt` list files),
 - applies the standard filter (`seeing` finite, `fwhm > 0`, `0 < seeing < 4`) and
   plots the `vlt_seeing` column,
-- writes standardized figures to `images/<year>/{tag}_{figure}.png`
-  (`tag` is `2025_q4` for quarters, `2025` for years),
+- writes figures under `images/<year>/<subdir>/<figure>.png`, where `<subdir>`
+  is `q1`..`q4` for a quarter and `annual` for a full year (e.g.
+  `images/2026/q2/hist.png`, `images/2025/annual/violin.png`). Filenames are
+  bare — the period is encoded by the directory, not a `{tag}_` prefix —
+  so regenerating a quarter cleanly overwrites its figures,
 - warns if the data does not reach the end of the period (in-progress quarter)
   and errors if the period has no data at all,
 - appends MiniCyclop seeing-monitor comparison figures when `minicyclop` is
@@ -62,7 +65,7 @@ Each quarterly/yearly notebook follows the same template — adapt an existing o
 - Read CSV list → concat → filter `seeing` finite, `fwhm > 0`, `0 < seeing < 4` → set `DatetimeIndex` from the `time` column (named `ut`).
 - The "good" seeing column is `vlt_seeing` (zenith-corrected via VLT method) in recent quarterly notebooks. The aggregate `all_seeing.ipynb` renames `vlt_seeing` → `seeing` after loading, so downstream code there refers to `seeing`. Don't blindly copy column names between notebooks — check which renaming has happened.
 - `between_time('00:00','07:00')` vs `('07:00','14:00')` splits the night into halves (UT). Times are UTC throughout; conversions to local use `America/Phoenix` (no DST).
-- The archived notebooks saved PNGs (and sometimes PDFs) into the repo root with names encoding the period, e.g. `2025_q4_violin.png`. Those historical figures have since been relocated into `images/<year>/` (year-less ones into `images/misc/`), and the `seeing_summary` generator writes new figures there under standardized `{tag}_{figure}.png` names — see "Generating quarterly / yearly summaries" above.
+- The archived notebooks saved PNGs (and sometimes PDFs) into the repo root with names encoding the period, e.g. `2025_q4_violin.png`. Those historical figures have since been relocated into `images/<year>/<subdir>/` — quarter files (any legacy naming: `2025_q4_*`, `2025q4_*`, bare `2025_q4.png` → `seeing.png`) into `q1`..`q4` with the period prefix stripped, and year-level / day-level / misc files into `annual` with their basenames kept. Year-less figures live in `images/misc/`. The `seeing_summary` generator writes new figures into the same `images/<year>/<subdir>/` tree with bare names — see "Generating quarterly / yearly summaries" above.
 - Cyclop comparisons load `~/MMT/minicyclop/data/MiniCyclop/Data/Seeing_Data.txt` and slice by the same date set as the WFS data.
 
 ## Notebook hygiene
@@ -72,7 +75,7 @@ Each quarterly/yearly notebook follows the same template — adapt an existing o
 
 ## Editing notebooks
 
-- Committed figures now live in `images/<year>/` (year-less legacy figures in
-  `images/misc/`); the generator writes there. Historical per-quarter/year
-  notebooks are archived under `notebooks/`.
+- Committed figures now live in `images/<year>/<subdir>/` (`q1`..`q4` or
+  `annual`; year-less legacy figures in `images/misc/`); the generator writes
+  there. Historical per-quarter/year notebooks are archived under `notebooks/`.
 - Use the NotebookEdit tool for `.ipynb` files rather than Edit/Write — preserves cell structure and metadata.

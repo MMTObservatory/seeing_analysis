@@ -30,7 +30,7 @@ def test_cli_writes_wfs_figures(tmp_path):
     out = tmp_path / "images"
     rc = main(["2025q4", "--data-dir", str(data_dir), "--out-dir", str(out), "--no-cyclop"])
     assert rc == 0
-    produced = list((out / "2025").glob("2025_q4_*.png"))
+    produced = list((out / "2025" / "q4").glob("*.png"))
     assert len(produced) == 11
 
 

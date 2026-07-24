@@ -213,13 +213,14 @@ def _bino_ellip_vs_el(df, out):
 def render_wfs_figures(df, period: Period, out_dir: Path) -> list[Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    tag = period.tag
     seeing = df["vlt_seeing"]
     ellip = df["ellipticity"]
     written = []
 
     def path(name):
-        p = out_dir / f"{tag}_{name}.png"
+        # Figures are written bare (e.g. hist.png); the period is encoded by the
+        # containing images/<year>/<subdir>/ directory, not the filename.
+        p = out_dir / f"{name}.png"
         written.append(p)
         return p
 
@@ -292,12 +293,11 @@ def _cyclop_vs_inst(df, cyclop, out):
 def render_cyclop_figures(df, cyclop, period: Period, out_dir: Path) -> list[Path]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    tag = period.tag
     seeing = cyclop["seeing"]
     written = []
 
     def path(name):
-        p = out_dir / f"{tag}_cyclop_{name}.png"
+        p = out_dir / f"cyclop_{name}.png"
         written.append(p)
         return p
 

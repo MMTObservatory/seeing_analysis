@@ -16,6 +16,17 @@ class Period:
     tag: str
     title: str
     year: int
+    quarter: int | None = None  # 1-4 for a quarter, None for a full year
+
+    @property
+    def subdir(self) -> str:
+        """Figure output subdirectory under ``images/<year>/``.
+
+        Quarters land in ``q<N>`` (e.g. ``q4``); a full year lands in
+        ``annual``. Combined with ``year`` this gives ``images/2026/q2`` or
+        ``images/2026/annual``.
+        """
+        return f"q{self.quarter}" if self.quarter else "annual"
 
     @property
     def date_range_str(self) -> str:
@@ -35,7 +46,7 @@ def parse_period(spec: str) -> Period:
         year, q = int(m.group(1)), int(m.group(2))
         start = pd.Timestamp(year, (q - 1) * 3 + 1, 1)
         end = start + pd.DateOffset(months=3)
-        return Period(key, start, end, f"{year}_q{q}", f"{year} Q{q}", year)
+        return Period(key, start, end, f"{year}_q{q}", f"{year} Q{q}", year, quarter=q)
     m = _YEAR_RE.match(key)
     if m:
         year = int(m.group(1))
